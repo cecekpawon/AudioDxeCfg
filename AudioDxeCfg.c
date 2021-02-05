@@ -32,12 +32,11 @@ STATIC CHAR16                           *mDefaultDevices[EfiAudioIoDeviceMaximum
 STATIC CHAR16                           *mLocations[EfiAudioIoLocationMaximum]     = { L"N/A", L"rear", L"front", L"left", L"right", L"top", L"bottom", L"other" };
 STATIC CHAR16                           *mSurfaces[EfiAudioIoSurfaceMaximum]       = { L"external", L"internal", L"other" };
 
-STATIC UINT8                            mDeviceVolume         = EFI_AUDIO_IO_PROTOCOL_MAX_VOLUME;
+STATIC UINT8                            mDeviceVolume         = (UINT8)(EFI_AUDIO_IO_PROTOCOL_MAX_VOLUME / 2);
 STATIC AUDIO_DEVICE                     *mDevices             = NULL;
 STATIC AUDIO_DEVICE                     *mCurrentDevice       = NULL;
 STATIC UINTN                            mDevicesCount         = 0;
 
-STATIC EFI_AUDIO_DECODE_PROTOCOL        *mAudioDecodeProtocol = NULL;
 STATIC UINT8                            *mBuffer              = NULL;
 STATIC UINT32                           mBufferSize           = 0;
 STATIC EFI_AUDIO_IO_PROTOCOL_FREQ       mFrequency            = 0;
@@ -113,18 +112,19 @@ GetAudioDecoder (
   VOID
   )
 {
-  EFI_STATUS    Status;
+  EFI_STATUS                  Status;
+  EFI_AUDIO_DECODE_PROTOCOL   *AudioDecodeProtocol;
 
   //
 
   Status = gBS->LocateProtocol (
     &gEfiAudioDecodeProtocolGuid,
     NULL,
-    (VOID **)&mAudioDecodeProtocol
+    (VOID **)&AudioDecodeProtocol
     );
   if (!EFI_ERROR (Status)) {
-    Status = mAudioDecodeProtocol->DecodeAny (
-      mAudioDecodeProtocol,
+    Status = AudioDecodeProtocol->DecodeAny (
+      AudioDecodeProtocol,
       &mChimeData[0],
       (UINT32)mChimeDataLength,
       (VOID **)&mBuffer,
@@ -441,7 +441,7 @@ PrintCurrentDevice (
   TextDevicePath  = ConvertDevicePathToText ((TmpDevicePath != NULL) ? TmpDevicePath : mCurrentDevice->DevicePath, FALSE, FALSE);
 
   // Success.
-  Print (L"Now using output %s - %s %s (Port: %lu) - %s\n",
+  Print (L"Output: %s - %s %s (Port: %lu) - %s\n",
     mDefaultDevices[mCurrentDevice->OutputPort.Device],
     mLocations[mCurrentDevice->OutputPort.Location],
     mSurfaces[mCurrentDevice->OutputPort.Surface],
@@ -457,6 +457,25 @@ PrintCurrentDevice (
   }
 
   return EFI_SUCCESS;
+}
+
+STATIC
+EFI_STATUS
+PrintCurrentSetting (
+  VOID
+  )
+{
+  EFI_STATUS    Status;
+
+  //
+
+  Print (L"Volume: (%d)\n", mDeviceVolume);
+  Print (L"Total devices: (%d)\n", mDevicesCount);
+  Print (L"Sampler: size (%d) freq (%d) bits (%d) chan (%d)\n", mBufferSize, mFrequency, mBits, mChannels);
+
+  Status = PrintCurrentDevice ();
+
+  return Status;
 }
 
 STATIC
@@ -544,9 +563,9 @@ SelectDevice (
 
   mCurrentDevice = &mDevices[DeviceIndex];
 
-  PrintCurrentDevice ();
+  Status = PrintCurrentDevice ();
 
-  return EFI_SUCCESS;
+  return Status;
 }
 
 EFI_STATUS
@@ -681,7 +700,7 @@ DisplayMenu (
   Print (L"%c - List all audio outputs\n", BCFG_ARG_LIST);
   Print (L"%c - Dump audio outputs to file\n", BCFG_ARG_DUMP);
   Print (L"%c - Select audio output\n", BCFG_ARG_SELECT);
-  Print (L"%c - Show selected audio output\n", BCFG_ARG_CURR);
+  Print (L"%c - Show current setting\n", BCFG_ARG_CURR);
   Print (L"%c - Change volume\n", BCFG_ARG_VOLUME);
   Print (L"%c - Test current audio output\n", BCFG_ARG_TEST);
   Print (L"%c - Quit\n", BCFG_ARG_QUIT);
@@ -805,9 +824,9 @@ AudioDxeCfgMain (
         }
         break;
 
-      // Print selected device.
+      // Print current setting.
       case BCFG_ARG_CURR:
-        Status = PrintCurrentDevice ();
+        Status = PrintCurrentSetting ();
         if (EFI_ERROR (Status)) {
           goto DONE;
         }
