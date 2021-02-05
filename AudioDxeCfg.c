@@ -160,11 +160,11 @@ GetOutputDevices (
   UINTN                         h;
 
   // Devices.
-  AUDIO_DEVICE             *OutputDevices;
-  AUDIO_DEVICE             *OutputDevicesNew;
-  UINTN                         OutputDevicesCount;
-  UINTN                         OutputDeviceIndex;
-  UINTN                         o;
+  AUDIO_DEVICE    *OutputDevices;
+  AUDIO_DEVICE    *OutputDevicesNew;
+  UINTN           OutputDevicesCount;
+  UINTN           OutputDeviceIndex;
+  UINTN           o;
 
   //
 
